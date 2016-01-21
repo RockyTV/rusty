@@ -83,23 +83,23 @@ impl Substring for str {
 
 fn main() {
     let mut stream = TcpStream::connect("irc.freenode.net:6667").unwrap();
+    let mut buffer: [u8; 512] = [0; 512];
     send_raw_message(&mut stream, "USER rustybot 0 * :rusty IRC bot");
     send_raw_message(&mut stream, "NICK rustybot_1337");
 
     loop {
-        let mut buffer: [u8; 128] = [0; 128];
         let mut ping_data = PingData {
-            server: String::new()
+            server: String::new(),
         };
-        stream.read(&mut buffer[..]);
-        parse_response(&buffer[..], &mut ping_data);
-
-        //let mut ping_msg: String = String::from_str("PING ").unwrap();
-        //ping_msg = ping_msg + &ping_data.server;
+        let bytes_read: usize = match stream.read(&mut buffer[..]) {
+            Ok(x) => x,
+            Err(e) => panic!("Couldn't read bytes from stream!"),
+        };
+        parse_response(&mut buffer[..], &mut ping_data, &mut stream);
     }
 }
 
-fn parse_response(buffer: &[u8], ping_data: &mut PingData) {
+fn parse_response(buffer: &mut [u8], ping_data: &mut PingData, stream: &mut TcpStream) {
     // sample message:
     // :availo.esper.net 401 test_nick :No such nick/channel
     let mut msg = match str::from_utf8(buffer) {
@@ -108,12 +108,15 @@ fn parse_response(buffer: &[u8], ping_data: &mut PingData) {
     };
     if msg != "" {
         let mut msg = msg.trim();
-        // Strip newline from the message
-        let message = msg.replace("\n", "");
-        let irc_msg = IrcMessage::new(&message);
-        println!("command: {}", irc_msg.command);
-        //println!(">> {}", irc_msg.raw_message);
-        
+        let message = IrcMessage::new(msg);
+        let buffer: [u8; 512] = [0; 512];
+        println!(">> {}", message.raw_message);
+
+        if message.command == "PING" { 
+            let mut ping_msg = String::from("PONG :");
+            ping_msg.push_str(&message.params[0]);
+            send_raw_message(stream, &ping_msg); 
+        }
     }
 }
         
@@ -122,7 +125,7 @@ fn send_raw_message(stream: &mut TcpStream, message: &str) -> Result<(), io::Err
     let mut actual_message = String::new();
     actual_message.push_str(message);
     actual_message.push_str("\r\n");
-    println!(">> {}", message);
+    println!("<< {}", message);
     try!(stream.write(&actual_message.as_bytes()));
     Ok(())
 }
