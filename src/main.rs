@@ -76,34 +76,23 @@ impl Substring for str {
 }
 
 fn main() {
-    let mut stream = TcpStream::connect("irc.esper.net:6667").unwrap();
-    loop {
-        let reader = BufReader::new(&mut stream);
-        for l in reader.lines() {
-            match l {
-                Ok(x) => {
-                    println!("{}", x);
-                    parse_response(&x);
-                },
-                Err(_) => panic!("Failed to read line"),
-            };
-        }
-    }
+    match TcpStream::connect("irc.esper.net:6667") {
+        Ok(stream) => {
+            println!("Connected");
+            loop {
+                let reader = BufReader::new(&stream);
+                for l in reader.lines() {
+                    match l {
+                        Ok(x) => println!(">> {}", parse_response(x).raw_message),
+                        Err(_) => panic!("Failed to read line"),
+                    };
+                }
+            }
+        },
+        Err(_) => panic!("Failed to connect to host"),
+    };
 }
 
-fn parse_response(buffer: &str) {
-    // sample message:
-    // :availo.esper.net 401 test_nick :No such nick/channel
-    let mut msg = buffer;
-    if msg != "" {
-        msg = msg.trim();
-        let message = IrcMessage::new(msg);
-        println!(">> {}", message.raw_message);
-
-        /*if message.command == "PING" { 
-            let mut ping_msg = String::from("PONG :");
-            ping_msg.push_str(&message.params[0]);
-            send_raw_message(stream, &ping_msg); 
-        }*/
-    }
+fn parse_response(buffer: String) -> IrcMessage {
+    return IrcMessage::new(buffer.trim());
 }
