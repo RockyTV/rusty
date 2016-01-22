@@ -1,13 +1,7 @@
-use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::net::TcpStream;
-use std::str;
 use std::str::FromStr;
-
-struct PingData {
-    server: String
-}
 
 struct IrcMessage {
     raw_message: String,
@@ -83,24 +77,21 @@ impl Substring for str {
 
 fn main() {
     let mut stream = TcpStream::connect("irc.esper.net:6667").unwrap();
-    let stdin = io::stdin();
-    let locked_stdin = stdin.lock();
-    send_raw_message(&mut stream, "USER rustybot 0 * :rusty IRC bot");
-    send_raw_message(&mut stream, "NICK rustybot_1337");
-
-    for l in locked_stdin.lines() {
-        let line = match l {
-            Ok(x) => {
-                parse_response(&x, &mut stream);
-                x
-            },
-            Err(_) => panic!("Failed to read line from stream"),
-        };
-        println!("{}", line);
+    loop {
+        let reader = BufReader::new(&mut stream);
+        for l in reader.lines() {
+            match l {
+                Ok(x) => {
+                    println!("{}", x);
+                    parse_response(&x);
+                },
+                Err(_) => panic!("Failed to read line"),
+            };
+        }
     }
 }
 
-fn parse_response(buffer: &str, stream: &mut TcpStream) {
+fn parse_response(buffer: &str) {
     // sample message:
     // :availo.esper.net 401 test_nick :No such nick/channel
     let mut msg = buffer;
@@ -109,20 +100,10 @@ fn parse_response(buffer: &str, stream: &mut TcpStream) {
         let message = IrcMessage::new(msg);
         println!(">> {}", message.raw_message);
 
-        if message.command == "PING" { 
+        /*if message.command == "PING" { 
             let mut ping_msg = String::from("PONG :");
             ping_msg.push_str(&message.params[0]);
             send_raw_message(stream, &ping_msg); 
-        }
+        }*/
     }
-}
-        
-
-fn send_raw_message(stream: &mut TcpStream, message: &str) -> Result<(), io::Error> {
-    let mut actual_message = String::new();
-    actual_message.push_str(message);
-    actual_message.push_str("\r\n");
-    println!("<< {}", message);
-    try!(stream.write(&actual_message.as_bytes()));
-    Ok(())
 }
