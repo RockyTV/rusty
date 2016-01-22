@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Alexandre Oliveira <rockytvbr@gmail.com>"]
 
 [dependencies]
+bufstream = "0.1.1"

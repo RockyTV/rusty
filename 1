@@ -1,10 +1,7 @@
-extern crate bufstream;
-
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::net::TcpStream;
 use std::str::FromStr;
-use bufstream::BufStream;
 
 struct IrcMessage {
     raw_message: String,
@@ -79,40 +76,23 @@ impl Substring for str {
 }
 
 fn main() {
-    match TcpStream::connect("irc.freenode.net:6667") {
-        Ok(mut tcp_stream) => {
+    match TcpStream::connect("irc.esper.net:6667") {
+        Ok(stream) => {
             println!("Connected");
-            let mut stream = BufStream::new(&tcp_stream);
-            let mut buffer = String::new();
-            
-            send_raw_message(&mut stream, "NICK rustybot_1337");
-            send_raw_message(&mut stream, "USER rusty 0 * :rusty IRC bot");
-            send_raw_message(&mut stream, "JOIN #orcaware");
-
-            while stream.read_line(&mut buffer).unwrap() > 0 {
-                let message = IrcMessage::new(&buffer);
-                print!(">> {}", message.raw_message);
-
-                if message.command == "PING" {
-                    let mut reply = String::from("PONG :");
-                    reply = reply + &message.params[0];
-                    send_raw_message(&mut stream, &reply);
+            let reader = BufReader::new(&stream);
+            loop {
+                for l in reader.lines() {
+                    match l {
+                        Ok(x) => println!(">> {}", parse_response(&x).raw_message),
+                        Err(_) => panic!("Failed to read line"),
+                    };
                 }
-
-                buffer.clear();
             }
         },
-        Err(e) => panic!("Failed to connect to host: {}", e),
+        Err(_) => panic!("Failed to connect to host"),
     };
 }
 
-fn send_raw_message<W: Write>(w: &mut W, msg: &str) -> Result<(), std::io::Error> {
-    let mut message = String::from(msg);
-    message = message + "\r\n";
-
-    try!(w.write(message.as_bytes()));
-    w.flush();
-    println!("<< {}", msg);
-
-    Ok(())
-} 
+fn parse_response(buffer: &str) -> IrcMessage {
+    return IrcMessage::new(buffer.trim());
+}
