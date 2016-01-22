@@ -82,34 +82,31 @@ impl Substring for str {
 }
 
 fn main() {
-    let mut stream = TcpStream::connect("irc.freenode.net:6667").unwrap();
-    let mut buffer: [u8; 512] = [0; 512];
+    let mut stream = TcpStream::connect("irc.esper.net:6667").unwrap();
+    let stdin = io::stdin();
+    let locked_stdin = stdin.lock();
     send_raw_message(&mut stream, "USER rustybot 0 * :rusty IRC bot");
     send_raw_message(&mut stream, "NICK rustybot_1337");
 
-    loop {
-        let mut ping_data = PingData {
-            server: String::new(),
+    for l in locked_stdin.lines() {
+        let line = match l {
+            Ok(x) => {
+                parse_response(&x, &mut stream);
+                x
+            },
+            Err(_) => panic!("Failed to read line from stream"),
         };
-        let bytes_read: usize = match stream.read(&mut buffer[..]) {
-            Ok(x) => x,
-            Err(e) => panic!("Couldn't read bytes from stream!"),
-        };
-        parse_response(&mut buffer[..], &mut ping_data, &mut stream);
+        println!("{}", line);
     }
 }
 
-fn parse_response(buffer: &mut [u8], ping_data: &mut PingData, stream: &mut TcpStream) {
+fn parse_response(buffer: &str, stream: &mut TcpStream) {
     // sample message:
     // :availo.esper.net 401 test_nick :No such nick/channel
-    let mut msg = match str::from_utf8(buffer) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
+    let mut msg = buffer;
     if msg != "" {
-        let mut msg = msg.trim();
+        msg = msg.trim();
         let message = IrcMessage::new(msg);
-        let buffer: [u8; 512] = [0; 512];
         println!(">> {}", message.raw_message);
 
         if message.command == "PING" { 
