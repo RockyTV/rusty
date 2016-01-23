@@ -99,6 +99,15 @@ fn main() {
                     send_raw_message(&mut stream, &reply);
                 }
 
+                if message.command == "PRIVMSG" {
+                    if message.params[1].starts_with(".ping") {
+                        let mut reply = String::from("PRIVMSG ");
+                        reply = reply + &message.params[0];
+                        reply = reply + " :PONG right in yo face!";
+                        send_raw_message(&mut stream, &reply);
+                    }
+                }
+
                 buffer.clear();
             }
         },
